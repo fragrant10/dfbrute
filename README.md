@@ -23,6 +23,12 @@ EXAMPLES:
  python3 dfbrute01.py urlsFile worldList 2
 ```
 
+# install
+
+
+```
+pip install -r requirements.txt
+```
 
 
 # [2019-07-12] 更新

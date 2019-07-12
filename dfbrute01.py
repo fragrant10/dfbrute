@@ -8,8 +8,8 @@ from fake_useragent import UserAgent
 import requests, sys, os, time, threading, urllib, pyfiglet, terminal_banner
 
 # For Print
-longSpace = '                                 '
-
+oneSpace = ' '
+sz = os.get_terminal_size()
 
 # 随机ua
 def headersRandom():
@@ -37,6 +37,7 @@ def readDictFileAndBrute(url, dictFileName, blackResLen, lastTenResLen):
             # print(urlNew)
             try:
                 res = requests.get(urlNew, headers=headersRandom(), timeout=50)
+                # print(columnsNeeedSpace)
                 # time.sleep(0.5)
                 # print(res.request.headers)
                 # print(res.status_code)
@@ -61,17 +62,28 @@ def readDictFileAndBrute(url, dictFileName, blackResLen, lastTenResLen):
                         # 如果连续10个都是返回值一样并且不在黑名单里面那就说明是有问题的返回
                         if lastTenIsSameOrNot == 1 and len(res.text) not in blackResLen:
                             blackResLen.append(len(res.text))
-                            print('1[-] %s (CODE: %s|BLACKSIZE: %s) %s' % (urlNew, res.status_code, len(res.text), longSpace), end='\r')
+                            # print(len('1[-] %s (CODE: %s|BLACKSIZE: %s) ' % (urlNew, res.status_code, len(res.text))))
+                            columnsNeeedSpace = sz.columns - len('[-] %s (CODE: %s|BLACKSIZE: %s) ' % (urlNew, res.status_code, len(res.text)))
+                            print('[-] %s (CODE: %s|BLACKSIZE: %s) %s' % (urlNew, res.status_code, len(res.text), oneSpace * columnsNeeedSpace), end='\r')
                         elif len(res.text) in blackResLen:
-                            print('2[-] %s (CODE: %s|SIZE: %s) %s' % (urlNew, res.status_code, len(res.text), longSpace), end='\r')
+                            columnsNeeedSpace = sz.columns - len('[-] %s (CODE: %s|SIZE: %s) ' % (urlNew, res.status_code, len(res.text)))
+                            print('[-] %s (CODE: %s|SIZE: %s) %s' % (urlNew, res.status_code, len(res.text), oneSpace * columnsNeeedSpace), end='\r')
                         elif lastTenIsSameOrNot != 1 and len(res.text) not in blackResLen:
                             print('[+] %s (CODE: %s|SIZE: %s)' % (urlNew, res.status_code, len(res.text)))
                 else:
-                    print('[-] %s (CODE: %s|SIZE:%s)%s' % (urlNew, res.status_code, len(res.text), longSpace), end='\r')
+                    # print('3[-] %s (CODE: %s|SIZE:%s)' % (urlNew, res.status_code, len(res.text)))
+                    columnsNeeedSpace = sz.columns - len('[-] %s (CODE: %s|SIZE:%s)' % (urlNew, res.status_code, len(res.text)))
+                    # print(sz.columns)
+                    # print(len('3[-] %s (CODE: %s|SIZE:%s)' % (urlNew, res.status_code, len(res.text))))
+                    print('[-] %s (CODE: %s|SIZE:%s)%s' % (urlNew, res.status_code, len(res.text), oneSpace * columnsNeeedSpace), end='\r')
                     # print('res.status_code {0}'.format())
             except Exception as error:
-                # time.sleep(300)
-                print('[X] URL: ' + urlNew + ' length: ' + 'None ' + 'Error: ' , error)
+                time.sleep(30)
+                # debug
+                # print('[X] URL: ' + urlNew + 'Error: ' , error)
+                # print('[X] URL: ' + urlNew + ' Error' + oneSpace + '\r')
+                columnsNeeedSpace = sz.columns - len('[X] %s ' % (urlNew))
+                print('[X] %s %s' % (urlNew, oneSpace * columnsNeeedSpace), end='\r')
 
 def usage():
     f = pyfiglet.Figlet(font="3-d")
