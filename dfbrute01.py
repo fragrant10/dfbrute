@@ -13,7 +13,7 @@ sz = os.get_terminal_size()
 
 # 随机ua
 def headersRandom():
-    ua = UserAgent()
+    ua = UserAgent(verify_ssl=False)
     headers = {
         'User-Agent': ua.random
     }
@@ -21,7 +21,7 @@ def headersRandom():
 
 # 读文件 url集合 和字典
 def readFile(fileName, lineNum, dictFileName, blackResLen, lastTenResLen):
-    with open(fileName, 'r') as file:
+    with open(fileName, 'r', encoding = "ISO-8859-1") as file:
         url = file.readlines()[lineNum].strip()
         print('-- scanning -- {0}'.format(url))
         readDictFileAndBrute(url, dictFileName, blackResLen, lastTenResLen)
@@ -31,35 +31,40 @@ def readFile(fileName, lineNum, dictFileName, blackResLen, lastTenResLen):
 # 读
 # TODO 多次返回一样可能是有问题
 def readDictFileAndBrute(url, dictFileName, blackResLen, lastTenResLen):
-    with open(dictFileName, 'r') as file:
+    with open(dictFileName, 'r', encoding = "ISO-8859-1") as file:
         for line in file:
             urlNew = url + line.strip()
             # print(urlNew)
             try:
-                res = requests.get(urlNew, headers=headersRandom(), timeout=50)
+                res = requests.get(urlNew, headers=headersRandom(), allow_redirects=True, timeout=50)
                 # print(columnsNeeedSpace)
                 # time.sleep(0.5)
+                # print(res.history)
                 # print(res.request.headers)
                 # print(res.status_code)
+                # print(res.url + ' -> ' + urlNew)
                 if res.history and res.status_code in [301, 302]:
                     for is301302403405401 in res.history:
                         if is301302403405401.status_code in [301, 302]:
-                            print('[+] %s -> %s (CODE: %s -> CODE: %s |SIZE:%s)' % (urlNew, urllib.parse.unquote(res.url, encoding='utf-8', errors='replace') ,is301302403405401.status_code, res.status_code, len(res.text)), end="\n")
-                # print(res.history)
+                            columnsNeeedSpace = sz.columns - len('[+] %s -> %s (CODE: %s -> CODE: %s |SIZE:%s) ' % (urlNew, urllib.parse.unquote(res.url, encoding='utf-8', errors='replace') ,is301302403405401.status_code, res.status_code, len(res.text)))
+                            print('[+] %s -> %s (CODE: %s -> CODE: %s |SIZE:%s) %s' % (urlNew, urllib.parse.unquote(res.url, encoding='utf-8', errors='replace') ,is301302403405401.status_code, res.status_code, len(res.text), oneSpace * columnsNeeedSpace), end="\n")
                 # print(res.url)
                 elif res.status_code in [200, 403, 405]:
-                    if len(lastTenResLen) < 10:
-                        lastTenResLen.append(len(res.text))
-                        if len(res.text) not in blackResLen:
-                            # 前10个都会输出 并且不会生成黑名单
-                            print('[+] %s (CODE: %s|SIZE:%s)' % (urlNew, res.status_code, len(res.text)))
-                    elif len(lastTenResLen) == 10:
-                        del lastTenResLen[0]
+                    if len(lastTenResLen) <= 5:
                         lastTenResLen.append(len(res.text))
                         # print(len(lastTenResLen), end='\n\n')
+                        # print(lastTenResLen, end='\n\n')
+                        if len(res.text) not in blackResLen:
+                            # 前5个都会输出 并且不会生成黑名单
+                            columnsNeeedSpace = sz.columns - len('[+] %s (CODE: %s|SIZE:%s) ' % (urlNew, res.status_code, len(res.text)))
+                            print('[+] %s (CODE: %s|SIZE:%s) %s' % (urlNew, res.status_code, len(res.text), oneSpace * columnsNeeedSpace))
+                    elif len(lastTenResLen) == 6:
+                        del lastTenResLen[-1]
+                        lastTenResLen.append(len(res.text))
+                        # print('\n\n' + len(lastTenResLen), end='\n\n')
                         # print(blackResLen)
                         lastTenIsSameOrNot = len(list(set(lastTenResLen)))
-                        # 如果连续10个都是返回值一样并且不在黑名单里面那就说明是有问题的返回
+                        # 如果连续5个都是返回值一样并且不在黑名单里面那就说明是有问题的返回
                         if lastTenIsSameOrNot == 1 and len(res.text) not in blackResLen:
                             blackResLen.append(len(res.text))
                             # print(len('1[-] %s (CODE: %s|BLACKSIZE: %s) ' % (urlNew, res.status_code, len(res.text))))
@@ -69,7 +74,8 @@ def readDictFileAndBrute(url, dictFileName, blackResLen, lastTenResLen):
                             columnsNeeedSpace = sz.columns - len('[-] %s (CODE: %s|SIZE: %s) ' % (urlNew, res.status_code, len(res.text)))
                             print('[-] %s (CODE: %s|SIZE: %s) %s' % (urlNew, res.status_code, len(res.text), oneSpace * columnsNeeedSpace), end='\r')
                         elif lastTenIsSameOrNot != 1 and len(res.text) not in blackResLen:
-                            print('[+] %s (CODE: %s|SIZE: %s)' % (urlNew, res.status_code, len(res.text)))
+                            columnsNeeedSpace = sz.columns - len('[+] %s (CODE: %s|SIZE: %s) ' % (urlNew, res.status_code, len(res.text), oneSpace * columnsNeeedSpace))
+                            print('[+] %s (CODE: %s|SIZE: %s) %s' % (urlNew, res.status_code, len(res.text)))
                 else:
                     # print('3[-] %s (CODE: %s|SIZE:%s)' % (urlNew, res.status_code, len(res.text)))
                     columnsNeeedSpace = sz.columns - len('[-] %s (CODE: %s|SIZE:%s)' % (urlNew, res.status_code, len(res.text)))
@@ -123,16 +129,18 @@ def main():
             readedUrlLine = 0   # 已经读取过的url行数
             while True:
                 # 响应黑名单 在扯个列表里面的长度值不再打印 因为可能是waf 
-                blackResLen = []
+                blackResLen = {}
                 # 如果最后10次请求的响应值一样那么就判定 可能有waf 加入黑名单不再打印
-                lastTenResLen = []
+                lastTenResLen = {}
                 urlsLines -= int(threadNum) # 域名文件还剩多少行 为了防止ip被封 每个线程只分配一个url进行扫描
                 if urlsLines >= 0:
                     readedUrlLine += int(threadNum) # 记录读过的行数
                     theadObjThreads = [] # 线程列表
                     for lineNum in range(readedUrlLine-int(threadNum), readedUrlLine):
                         # print(lineNum)
-                        theadObj = threading.Thread(target=readFile, args=[urls, lineNum, dictFileName, blackResLen, lastTenResLen])
+                        blackResLen[lineNum] = []
+                        lastTenResLen[lineNum] = [] 
+                        theadObj = threading.Thread(target=readFile, args=[urls, lineNum, dictFileName, blackResLen[lineNum], lastTenResLen[lineNum]])
                         theadObjThreads.append(theadObj)
                         theadObj.start()
                     for theadObj in theadObjThreads:    # 等待所有这一轮的线程结束
@@ -146,7 +154,9 @@ def main():
                     for lineNum in range(readedUrlLine - urlsLines, readedUrlLine):
                         # print(11111111)
                         # print(lineNum)
-                        theadObj = threading.Thread(target=readFile, args=[urls, lineNum, dictFileName, blackResLen, lastTenResLen])
+                        blackResLen[lineNum] = []
+                        lastTenResLen[lineNum] = []
+                        theadObj = threading.Thread(target=readFile, args=[urls, lineNum, dictFileName, blackResLen[lineNum], lastTenResLen[lineNum]])
                         theadObj.start()
                         theadObj.join()
                     break
